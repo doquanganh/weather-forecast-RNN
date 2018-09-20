@@ -1,0 +1,143 @@
+Machine Learning - Thử làm Nhà Thiên Văn Dự Báo Thời Tiết
+Dự báo thời tiết có một vai trò to lớn trong đời sống kinh tế, xã hội. Dự báo đúng sẽ giúp con người đưa ra những quyết định đúng đắn, dự báo sai, bạn biết rồi đấy, có thể sẽ là những hậu quả vô cùng khủng khiếp.
+
+Mấy hôm nay trời bắt đầu lạnh hơn, và tôi thì vẫn như mọi ngày, chẳng bao giờ chịu xem dự báo thời tiết cả, hậu quả là "giờ ngồi nhà và uống thuốc cảm". Giá như mình chịu khó xem dự báo thời tiết thì có phải tốt không. Nhưng cũng nhờ nó mà tôi nảy ra cái ý tưởng điên rồ đó là dựa vào những thông tin thời tiết trong quá khứ và dự đoán thời tiết ngày hôm sau. Nào ta cùng bắt đầu.
+
+Banner OneCv
+Tìm hiểu bài toán
+Với bài toán dự báo như thế này, tôi quy nó về Time Series Analysis để có thể dễ hiểu và dễ áp dụng hơn. Bạn có thể tìm thấy một số bài toán thuộc thể loại này, như phân tích tài chính, tỉ số chứng khoán, hay áp dụng nó để phân tích tỉ giá Bitcoin để đầu tư đúng chỗ, đúng thời điểm. Nghĩ ra cái này sớm hơn giờ có phải giàu rồi không (yaoming)
+Với bài toán này, bạn có thể thử nghiệm trên các thông số thời tiết
+
+nhiệt độ (°C)
+độ ẩm (%)
+lượng mưa (mm)
+tốc độ gió (km/h)
+hướng gió (độ)
+lượng mây (%)
+.......
+input: thông số thời tiết của ngày hôm trước
+output: thông số thời tiết của ngày hôm sau
+
+Chuẩn bị dữ liệu
+Dữ liệu là một yếu tố bắt buộc trong tất cả các bài toán Machine Learning. Với bài toán dự báo thời tiết, bạn có thể down load dữ liệu thời tiết Hà Nội tại đây. Trang này cung cấp đầy đủ cho các bạn cấc thông tin lượng mưa, độ ẩm, nhiệt độ, nắng gió... Nhưng cũng có một nhược điểm đó là họ chỉ cho phép bạn down load thông tin thời tiết của 15 ngày gần nhất (sad). Nhưng không sao, từng đó dữ liệu mình nghĩ cũng đủ thông tin để dự báo cho ngay mai rồi. Mặc dù nếu là mùa hè thì.... sẽ hơi khó đấy. Đến lúc đó sẽ phải bổ sung thêm vậy. Hoặc là bạn có thể bỏ ra 115.00 $ để có được bộ dữ liệu thời tiết trong 30 năm của Hà Nội (lol)
+sau khi download về, tôi có được file dữ liệu dạng như sau:
+
+Nhiều bạn sẽ thắc mắc với dữ liệu như trên thì chúng ta sẽ dự đoán nhiệt độ cho ngày hôm sau thế nào đây? Có lẽ chúng ta cần xử lý nó một chút mới có thể sử dụng được dữ liệu này.
+
+Xử lý dữ liệu
+Cũng giống như các bài toán khác, Tôi tiếp tục sử dụng thư viện tensorflow để hỗ trợ quá trình training, Về cơ bản thì tensorflow đã được tích hợp rất nhiều các thuật toán khác nhau, dễ dàng sử dụng, và giúp giảm thời gian xây dựng các hệ thống deep learning. Đồng thời kết hợp với pandas và numpy để phân tích, và xử lý cấu trúc data, và matplotlib dùng để về đồ thị. Việc vẽ đồ thị rất quan trọng đối với các bài toán thuộc dạng Time Series Analysis như thế này. Vì dĩ nhiên việc đoán trước không thể trả về kết quả chính xác 100% được, Kết quả sẽ là tương đối và có thể có một chút sai số không đáng kể. Vì thế việc vẽ đồ thị sẽ giúp bạn dễ dàng so sánh giữa kết quả dự đoán và thực tế.
+
+Đầu tiên import các thư viện sẽ được dùng
+
+import tensorflow as tf
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+%matplotlib inline
+Load training data
+
+file_path = \'data/weather.csv\'
+data=pd.read_csv(file_path, delimiter=\',\',header=11,skipinitialspace=True)
+data.head(24)
+header sẽ là vị trí header trong file dữ liệu. Như bạn trong file csv bên trên Header của dữ liệu ở dòng số 12, nói các khách nếu xét theo 1 array thì index=11. Nếu file dữ liệu của bạn không có header thì có thể đổi thành header=None
+
+Như vậy ta đã có được file dữ liệu training. bây giờ bạn chỉ cần gọi data[\'Temperature\'] hoặc data[\'Wind_Speed\'] ... để sử dụng. Tôi sẽ làm mẫu trước với dữ liệu là Temperature
+
+temperature = np.array(data[\'Temperature\'])
+Nhiều bạn có thể sẽ thắc mắc với dữ liệu chỉ có X như vậy thì chúng ta sẽ lấy Y ở đâu để training, để predict đây. Thật ra nó cũng không hoàn toàn mơ hồ khó hiểu vậy đâu, hãy cứ nghĩ easy như thế này: Bạn có 1 chuỗi các giá trị array, các số tiếp theo sẽ phụ thuộc vào các số trước đó, cũng như vậy chúng ta sẽ có các giá trị thời tiết tại thời điểm trước đó sẽ là X và giá trị thời tiết tại thời điểm trên sau 1 giờ sẽ là Y.
+
+X	Y
+15.97	15.9
+15.9	15.83
+15.83	15.85
+15.85	16.24
+16.24	16.69
+16.69	17.22
+17.22	17.72
+17.72	18.25
+Như vậy trong bài toán tôi sẽ dùng dữ liệu x_train từ giá trị 2018-01-15 00:00:00 đến ngày hiện tại - 2 days, khi đó. chúng ta sẽ có đến 48 giá trị test để so sánh.
+Và dữ liệu Y sẽ là giá trị từ 2018-01-15 01:00:00
+
+num_periods = 24
+f_horizon = 1
+x_train = temperature[:(len(temperature)-(num_periods*2))]
+x_batches = x_train.reshape(-1, num_periods, 1)
+
+y_train = temperature[1:(len(temperature)-(num_periods*2))+f_horizon]
+y_batches = y_train.reshape(-1, num_periods, 1)
+và dữ liệu test
+
+def test_data(series, forecast, num):
+    testX = temperature[-(num + forecast):][:num].reshape(-1, num_periods, 1)
+    testY = temperature[-(num):].reshape(-1, num_periods, 1)
+    return testX, testY
+X_test, Y_test = test_data(temperature, f_horizon, 24*2)
+print(X_test.shape)
+Vậy là chúng ta đã có đủ dữ liệu để training và test. Và giai đoạn tiếp theo vô cùng quan trọng đó là training model
+
+Training Model
+Do đặc thù của bài toán này là dùng các thông tin trong quá khứ, để dự đoán tương lai, nên thuật toán ở đây tôi lựa chọn là Recurrent Neeural Network (RNN) hay trong tiêng Việt chúng ta gọi nó là Mạng Nơ-ron hồi quy
+
+Ý tưởng chính của RNN (Recurrent Neural Network) là sử dụng chuỗi các thông tin. Ví dụ, nếu muốn đoán từ tiếp theo có thể xuất hiện trong một câu thì ta cũng cần biết các từ trước đó xuất hiện lần lượt thế nào. RNN được gọi là hồi quy (Recurrent) bởi lẽ chúng thực hiện cùng một tác vụ cho tất cả các phần tử của một chuỗi với đầu ra phụ thuộc vào cả các phép tính trước đó. Nói cách khác, RNN có khả năng nhớ các thông tin được tính toán trước đó. Trong nhiều mạng neural truyền thống khác, dữ liệu đầu vào và đầu ra hoàn toàn độc lập với nhau, tức là chúng không có liên kết thành chuỗi. Do đó khi áp dụng vào bài toán dự báo thời tiết của tôi sẽ rất khó để đưa ra kết quả dự đoán.
+
+tf.reset_default_graph()
+rnn_size = 100
+learning_rate=0.001
+
+X = tf.placeholder(tf.float32, [None, num_periods, 1])
+Y = tf.placeholder(tf.float32, [None, num_periods, 1])
+
+rnn_cells=tf.contrib.rnn.BasicRNNCell(num_units=rnn_size, activation=tf.nn.relu)
+rnn_output, states = tf.nn.dynamic_rnn(rnn_cells, X, dtype=tf.float32)
+
+output=tf.reshape(rnn_output, [-1, rnn_size])
+logit=tf.layers.dense(output, 1, name="softmax")
+
+outputs=tf.reshape(logit, [-1, num_periods, 1])
+print(logit)
+
+loss = tf.reduce_sum(tf.square(outputs - Y))
+
+accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logit, 1), tf.cast(Y, tf.int64)), tf.float32))
+optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+train_step=optimizer.minimize(loss)
+Ở đây khi khai báo và sử dụng mạng neural, tôi sử dụng mô hình RNN truyền thống với hàm activation là relu. Bạn có thể chuyển qua và test thử với mô hình khác của RNN như LSTM (Long Short-Term Memory) để có được nhiều kết quả so sánh (thật ra thì ... tôi đã thử rồi nhưng có vẻ như kết quả không được khả quan lắm so với mô hình truyền thống này (lol) )
+
+Bắt đầu training thôi.
+
+epochs = 1000
+
+sess = tf.Session()
+init = tf.global_variables_initializer()
+sess.run(init)
+
+for epoch in range(epochs):
+    train_dict = {X: x_batches, Y: y_batches, dropout_keep_prob:0.5}
+    sess.run(train_step, feed_dict=train_dict)
+Sau khi train thì hãy nhớ lưu lại model để sử dụng lần sau nhé
+
+saver = tf.train.Saver()
+save_path = saver.save(sess, "models/model.ckpt")
+Vậy là quá trình training đã hoàn thành. bây giờ cần phải test lại thành quả của chúng ta. Khi test dữ liệu, bạn cần restore lại models mà mình vừa training lúc nãy để sử dụng
+
+with tf.Session() as sess:
+  # Restore variables from disk.
+    saver.restore(sess, "models/model.ckpt")
+    y_pred=sess.run(outputs, feed_dict={X: X_test})
+    print (y_pred)
+
+Nếu chỉ nhìn vào dữ liệu đầu ra như thế kia tôi cũng không biết liệu kết quả dự đoán của chúng ta sẽ ra sao. Do đó để dễ dàng so sánh, việc vẽ đồ thị sẽ rất cần thiết để giúp chúng ta có cái nhìn chính xác để đánh giá mô hình dự đoán này.
+
+plt.title("Compare Weather Forecast vs Actual", fontsize=14)
+plt.plot(pd.Series(np.ravel(Y_test)), "bo", markersize=10, label="Actual")
+plt.plot(pd.Series(np.ravel(y_pred)), "r.", markersize=10, label="Forecast")
+plt.legend(loc="upper left")
+plt.xlabel("Time Periods")
+plt.show()
+Đồ thị chúng ta có .....................
+
+Giải thích đồ thị một chút. Bạn có thể thấy chấm tròn nhỏ màu đỏ trên đồ thị là giá trị thời tiết mà mô hình của chúng ta đã dự đoán. Bạn có bạn có thể so sánh nó với giá trị thực tế (chấm tròn to màu xanh). Có lẽ nó không có sự chênh lệch quá nhiều. Mà đây chúng ta chỉ có dữ liệu trong vòng 15 ngày thôi đó. Hy vọng là trong tương lai, tôi có 115$ để mua đầy đủ bộ dữ liệu 30 năm của Hà Nội, lúc đó kết quả training có thể sẽ được cải thiện khá nhiều.
+
+Tổng Kết
+Mạng RNN có thể áp dụng vào các bài toán với dữ liệu là các chuỗi liên kết khác nhau. Tôi hy vọng bài viết nhỏ nhoi, này sẽ hữu ích cho các bạn để áp dụng vào nhiều bài toán không chỉ là dự báo thời tiết nữa. Hoặc trong tương lai bạn có thể xây dựng mô hình dự báo tỉ giá Bitcoin nhờ bài viết này, lúc đó, trở thành tủ phú rồi thì đừng quên tôi nhé :D
+Link github của ứng dụng Weather Forecast RNN
